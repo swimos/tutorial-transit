@@ -1,0 +1,219 @@
+import java.util.regex.Matcher
+
+buildscript {
+  repositories {
+    maven { url 'https://plugins.gradle.org/m2/' }
+  }
+  dependencies {
+    classpath 'com.netflix.nebula:gradle-ospackage-plugin:8.3.0'
+  }
+}
+
+plugins {
+  id 'com.google.cloud.tools.jib' version '3.3.1'
+}
+
+
+apply plugin: 'java-library'
+apply plugin: 'application'
+apply plugin: 'nebula.ospackage-application'
+
+group = 'org.swimos'
+description = 'Real-time Transit App'
+version = project.property('application.version')
+mainClassName = 'swim.transit.TransitPlane'
+ext.moduleName = 'swim.transit'
+ext.compilerArgs = ['-Xlint:all']
+
+// Build with `gradle -Pno-modules` to force compatibility with legacy JVMs.
+def javaVersion = System.getProperty('java.version').split('\\.')
+ext.jvmVersion = 11
+ext.useModules = !hasProperty('no-modules')
+ext.moduleArgs = []
+ext.swimVersion=project.property('swim.version')
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation group: 'org.swimos', name: 'swim-xml', version: swimVersion
+  api group: 'org.swimos', name: 'swim-api', version: swimVersion
+  implementation group: 'org.swimos', name: 'swim-server', version: swimVersion
+  runtimeOnly group: 'org.swimos', name: 'swim-meta', version: swimVersion
+}
+
+afterEvaluate {
+  configurations {
+    apiElements {
+      sourceCompatibility = JavaVersion.VERSION_11
+      targetCompatibility = JavaVersion.VERSION_11
+    }
+  }
+
+  if (useModules) {
+    task compileModuleInfoJava(type: JavaCompile) {
+      dependsOn 'compileJava'
+      doFirst {
+        options.compilerArgs = [
+          '--module-path', compileJava.classpath.asPath,
+          '--patch-module', "$moduleName="
+                  + files(sourceSets.main.resources.srcDirs).asPath,
+        ]
+      }
+      options.compilerArgs += compilerArgs
+      options.encoding = 'UTF-8'
+      classpath = files()
+      source = sourceSets.main.allJava
+      sourceCompatibility = JavaVersion.VERSION_11
+      targetCompatibility = JavaVersion.VERSION_11
+      destinationDirectory = compileJava.destinationDirectory
+      include '*module-info*'
+    }
+    classes.dependsOn compileModuleInfoJava
+    def dependents = configurations.api.dependencies + configurations.implementation.dependencies
+    def dependentProjects = dependents.findAll { it instanceof ProjectDependency }
+    dependentProjects.each { dependency ->
+      compileModuleInfoJava.dependsOn ":${dependency.name}:compileModuleInfoJava"
+    }
+  }
+
+  sourceSets {
+    main.output.resourcesDir = main.java.outputDir
+  }
+
+  compileJava {
+    options.compilerArgs += compilerArgs
+    options.encoding = 'UTF-8'
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+    exclude '*module-info*'
+  }
+
+  jib {
+    from {
+      image = "openjdk:11"
+    }
+    to {
+      image = "nstream/demo-transit:${version}"
+      auth {
+        username = "$System.env.REGISTRY_USERNAME"
+        password = "$System.env.REGISTRY_PASSWORD"
+      }
+    }
+    container {
+      mainClass = mainClassName
+      ports = ['9001/tcp']
+      jvmFlags = ['-Dswim.config=/config/server.recon']
+    }
+    extraDirectories {
+      paths {
+        path {
+          // copies a single-file.xml
+          from = 'src/main/resources'
+          into = '/config'
+          includes = ['*.recon']
+        }
+      }
+    }
+  }
+
+  jar {
+    inputs.property('moduleName', moduleName)
+    manifest {
+      attributes(
+        'Implementation-Title': moduleName,
+        'Implementation-Version': archiveVersion,
+        'Main-Class': mainClassName)
+    }
+  }
+
+  task sourcesJar(type: Jar) {
+    archiveClassifier = 'sources'
+    from sourceSets.main.allSource
+  }
+
+  task javadocJar(type: Jar) {
+    archiveClassifier = 'javadoc'
+    from javadoc.destinationDir
+  }
+
+  artifacts {
+    archives javadocJar, sourcesJar
+  }
+
+  run {
+    dependsOn jar
+    if (useModules) {
+      doFirst {
+        jvmArgs += [
+          '--module-path', files(configurations.runtimeClasspath, jar.archivePath).asPath,
+        ] + moduleArgs + [
+          '--module', "${moduleName}/${mainClassName}",
+        ]
+        classpath = files()
+      }
+    }
+    systemProperties = System.getProperties()
+  }
+
+  startScripts {
+    inputs.property("moduleName", moduleName)
+    if (useModules) {
+      doFirst {
+        defaultJvmOpts += [
+          '--module-path', 'APP_HOME_LIBS',
+        ] + moduleArgs + [
+          '--module', "${moduleName}/${mainClassName}",
+        ]
+        classpath = files()
+      }
+    }
+    doLast {
+      def bashFile = new File(outputDir, applicationName)
+      String bashContent = bashFile.text
+      bashFile.text = bashContent.replaceFirst('APP_HOME_LIBS', Matcher.quoteReplacement('$APP_HOME/lib'))
+
+      def batFile = new File(outputDir, applicationName + ".bat")
+      String batContent = batFile.text
+      batFile.text = batContent.replaceFirst('APP_HOME_LIBS', Matcher.quoteReplacement('%APP_HOME%\\lib'))
+    }
+  }
+
+  ospackage {
+    release '1'
+    prefix '/opt/swim-transit'
+  }
+
+  task packageDeb(type: Deb) {
+    maintainer = 'developer@swim.inc'
+
+    configurationFile("/etc/sysconfig/${project.name}")
+    preInstall "addgroup --quiet --system ${project.name}"
+    preInstall "adduser --quiet --system --ingroup ${project.name} --no-create-home --disabled-password ${project.name}"
+    postInstall "systemctl preset ${project.name} > /dev/null 2>&1"
+    postInstall "systemctl start ${project.name} > /dev/null 2>&1"
+    preUninstall  "systemctl disable ${project.name} > /dev/null 2>&1"
+    preUninstall  "systemctl stop ${project.name} > /dev/null 2>&1"
+    postUninstall "systemctl daemon-reload > /dev/null 2>&1"
+
+    from('pkg') {
+      into '/etc/systemd/system'
+      include '*.service'
+      addParentDirs false
+      expand project.properties
+      user 'root'
+      permissionGroup 'root'
+      fileMode = 0644
+    }
+
+    from('pkg') {
+      into '/etc/sysconfig'
+      include "${project.name}"
+      user 'root'
+      permissionGroup 'root'
+      fileMode = 0644
+      fileType CONFIG | NOREPLACE
+    }
+  }
+}

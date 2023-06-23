@@ -1,0 +1,32 @@
+@kernel(class: 'swim.store.db.DbStoreKernel', optional: true)
+@kernel(class: 'swim.reflect.ReflectKernel', optional: true)
+
+transit: @fabric {
+    @node {
+        pattern: "/country/:id"
+        @agent(class: "swim.transit.agent.CountryAgent")
+    }
+    @node {
+        pattern: "/state/:country/:state"
+        @agent(class: "swim.transit.agent.StateAgent")
+    }
+    @node {
+        pattern: "/agency/:country/:state/:id"
+        @agent(class: "swim.transit.agent.AgencyAgent")
+    }
+    @node {
+        pattern: "/vehicle/:country/:state/:agency/:id"
+        @agent(class: "swim.transit.agent.VehicleAgent")
+    }
+    @store {
+        path: "/tmp/swim-transit/"
+    }
+}
+
+@web(port: 9001) {
+  space: "transit"
+  @websocket {
+    serverCompressionLevel: 0# -1 = default; 0 = off; 1-9 = deflate level
+    clientCompressionLevel: 0# -1 = default; 0 = off; 1-9 = deflate level
+  }
+}
