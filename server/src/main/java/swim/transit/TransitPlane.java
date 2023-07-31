@@ -15,7 +15,6 @@ import swim.server.ServerLoader;
 import swim.structure.Item;
 import swim.structure.Record;
 import swim.transit.agent.AgencyAgent;
-import swim.transit.agent.CountryAgent;
 import swim.transit.agent.StateAgent;
 import swim.transit.agent.VehicleAgent;
 import swim.structure.Value;
@@ -24,8 +23,6 @@ public class TransitPlane extends AbstractPlane {
   private static final Logger log = Logger.getLogger(TransitPlane.class.getName());
 
   public TransitPlane() {}
-
-  AgentRoute<CountryAgent> transitAgent;
 
    AgentRoute<StateAgent> stateAgent;
 

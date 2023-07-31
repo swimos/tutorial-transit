@@ -53,14 +53,6 @@ public class StateAgent extends AbstractAgent {
         joinAgencyCount.downlink(agency).nodeUri(agency.get("uri").stringValue()).laneUri("count").open();
         joinAgencyVehicles.downlink(agency).nodeUri(agency.get("uri").stringValue()).laneUri("vehicles").open();
         joinAgencySpeed.downlink(agency).nodeUri(agency.get("uri").stringValue()).laneUri("speed").open();
-        // String id, String state, String country, int index
-        Record newAgency = Record.of()
-                .slot("id", agency.get("id").stringValue())
-                .slot("state", agency.get("state").stringValue())
-                .slot("country", agency.get("country").stringValue())
-                .slot("index", agency.get("index").intValue())
-                .slot("stateUri", nodeUri().toString());
-        context.command("/country/" + getProp("country").stringValue(), "addAgency", newAgency);
     });
 
     public void updateCounts(Value agency, int newCount, int oldCount) {
