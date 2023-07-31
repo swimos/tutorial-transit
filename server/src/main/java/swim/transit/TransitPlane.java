@@ -5,8 +5,6 @@ import java.io.InputStream;
 import java.util.Scanner;
 import java.util.logging.Logger;
 
-import swim.api.SwimAgent;
-import swim.api.SwimRoute;
 import swim.api.agent.AgentRoute;
 import swim.api.plane.AbstractPlane;
 import swim.api.ref.WarpRef;
@@ -27,20 +25,12 @@ public class TransitPlane extends AbstractPlane {
 
   public TransitPlane() {}
 
-  @SwimAgent("country")
-  @SwimRoute("/country/:id")
   AgentRoute<CountryAgent> transitAgent;
 
-  @SwimAgent("state")
-  @SwimRoute("/state/:country/:state")
-  AgentRoute<StateAgent> stateAgent;
+   AgentRoute<StateAgent> stateAgent;
 
-  @SwimAgent("agency")
-  @SwimRoute("/agency/:country/:state/:id")
   AgentRoute<AgencyAgent> agencyAgent;
 
-  @SwimAgent("vehicle")
-  @SwimRoute("/vehicle/:country/:state/:agency/:id")
   AgentRoute<VehicleAgent> vehicleAgent;
 
   public static void main(String[] args) {

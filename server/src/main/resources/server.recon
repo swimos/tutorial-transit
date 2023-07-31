@@ -1,7 +1,6 @@
-@kernel(class: 'swim.store.db.DbStoreKernel', optional: true)
-@kernel(class: 'swim.reflect.ReflectKernel', optional: true)
 
 transit: @fabric {
+    @plane(class: "swim.transit.TransitPlane")
     @node {
         pattern: "/country/:id"
         @agent(class: "swim.transit.agent.CountryAgent")
