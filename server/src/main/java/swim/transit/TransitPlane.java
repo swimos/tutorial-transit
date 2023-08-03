@@ -48,7 +48,6 @@ public class TransitPlane extends AbstractPlane {
     } catch (InterruptedException e) {
 
     }
-    NextBusHttpAPI.sendRoutes(agencies, warp);
   }
 
   private static Value loadAgencies() {

@@ -24,16 +24,16 @@ public class AgencyAgent extends AbstractAgent {
     public MapLane<String, Value> vehicles;
 
     @SwimLane("count")
-    public ValueLane<Integer> vehiclesCount;
+    public ValueLane<Integer> vehicleCount;
 
     @SwimLane("speed")
-    public ValueLane<Float> vehiclesSpeed;
-
-    @SwimLane("addVehicles")
-    public CommandLane<Value> addVehicles = this.<Value>commandLane().onCommand(this::onVehicles);
+    public ValueLane<Float> avgVehicleSpeed;
 
     @SwimLane("boundingBox")
     public ValueLane<Value> boundingBox;
+
+    @SwimLane("addVehicles")
+    public CommandLane<Value> addVehicles = this.<Value>commandLane().onCommand(this::onVehicles);
 
     private void onVehicles(Value newVehicles) {
         if (newVehicles == null || newVehicles.length() == 0) {
@@ -77,9 +77,9 @@ public class AgencyAgent extends AbstractAgent {
                 .slot("maxLng", maxLng);
 
         boundingBox.set(bb);
-        vehiclesCount.set(this.vehicles.size());
-        if (vehiclesCount.get() > 0) {
-            vehiclesSpeed.set(((float) speedSum) / vehiclesCount.get());
+        vehicleCount.set(this.vehicles.size());
+        if (vehicleCount.get() > 0) {
+            avgVehicleSpeed.set(((float) speedSum) / vehicleCount.get());
         }
     }
 
@@ -94,23 +94,18 @@ public class AgencyAgent extends AbstractAgent {
 
     private void addVehicle(String vehicleUri, Value v) {
         // log.info("addVehicle vehicleUri: " + vehicleUri + "; v: " + Recon.toString(v));
-        final Value r = routes.get(v.get("routeTag").stringValue());
+        Value newVehicle = Record.of()
+            .slot("id", getProp("id").stringValue(""))
+            .slot("uri", v.get("uri").stringValue())
+            .slot("agency", info.get().get("id").stringValue())
+            .slot("dirId", v.get("dirId").stringValue())
+            .slot("latitude", v.get("latitude").floatValue())
+            .slot("longitude", v.get("longitude").floatValue())
+            .slot("speed", v.get("speed").intValue())
+            .slot("secsSinceReport", v.get("secsSinceReport").intValue())
+            .slot("heading", v.get("heading").stringValue());
 
-        if (r != null) {
-             Value newVehicle = Record.of()
-                     .slot("id", getProp("id").stringValue(""))
-                     .slot("uri", v.get("uri").stringValue())
-                     .slot("agency", info.get().get("id").stringValue())
-                     .slot("routeTag", r.get("title").stringValue())
-                     .slot("dirId", v.get("dirId").stringValue())
-                     .slot("latitude", v.get("latitude").floatValue())
-                     .slot("longitude", v.get("longitude").floatValue())
-                     .slot("speed", v.get("speed").intValue())
-                     .slot("secsSinceReport", v.get("secsSinceReport").intValue())
-                     .slot("heading", v.get("heading").stringValue())
-                     .slot("routeTitle", r.get("title"));
-            this.vehicles.put(vehicleUri, newVehicle);
-        }
+        this.vehicles.put(vehicleUri, newVehicle);
     }
 
     @SwimLane("addInfo")
@@ -125,18 +120,6 @@ public class AgencyAgent extends AbstractAgent {
 
     private void onInfo(Value agency) {
         info.set(agency);
-    }
-
-    @SwimLane("addRoutes")
-    public CommandLane<Value> addRoutes = this.<Value>commandLane().onCommand(this::onRoutes);
-
-    @SwimLane("routes")
-    public MapLane<String, Value> routes;
-
-    private void onRoutes(Value r) {
-        for (Item route : r) {
-            routes.put(route.get("tag").stringValue(), route.toValue());
-        }
     }
 
     private TaskRef pollVehicleInfo;
@@ -187,8 +170,8 @@ public class AgencyAgent extends AbstractAgent {
     @Override
     public void didStart() {
         vehicles.clear();
-        vehiclesSpeed.set((float) 0);
-        vehiclesCount.set(0);
+        avgVehicleSpeed.set((float) 0);
+        vehicleCount.set(0);
         log.info(() -> String.format("Starting Agent:%s", nodeUri()));
     }
 

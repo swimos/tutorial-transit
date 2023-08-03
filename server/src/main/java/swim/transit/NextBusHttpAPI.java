@@ -16,60 +16,20 @@ import swim.xml.Xml;
 
 public class NextBusHttpAPI {
     private static final Logger log = Logger.getLogger(NextBusHttpAPI.class.getName());
-    private NextBusHttpAPI() { }
 
-    public static void sendRoutes(Value agencies, WarpRef warp) {
-        for (Item agency: agencies) {
-            sendRoutesInternal(agency.toValue(), warp);
-        }
+    private NextBusHttpAPI() {
     }
 
     public static void sendVehicleInfo(String pollUrl, Value agency, WarpRef warp) {
         final Value vehicles = getVehicleLocations(pollUrl, agency);
         final String agencyUri = "/agency/" +
-               agency.get("id").stringValue();
+                agency.get("id").stringValue();
         if (vehicles != null && vehicles.length() > 0) {
             warp.command(agencyUri, "addVehicles", vehicles);
         }
     }
 
-    private static void sendRoutesInternal(Value agency, WarpRef warp) {
-        final Value routes = getRoutes(agency);
-        if (routes != null && routes.length() > 0) {
-            final String agencyUri = "/agency/" +
-                    agency.get("id").stringValue();
-            warp.command(agencyUri, "addRoutes", routes);
-        }
-    }
-
-    private static Value getRoutes(Value ag) {
-        try {
-            final URL url = new URL(String.format(
-                    "https://retro.umoiq.com/service/publicXMLFeed?command=routeList&a=%s", ag.get("id").stringValue()));
-            final Value allRoutes = parse(url);
-            if (!allRoutes.isDefined()) {
-                return null;
-            }
-            final Iterator<Item> it = allRoutes.iterator();
-            final Record routes = Record.of();
-            while (it.hasNext()) {
-                final Item item = it.next();
-                final Value header = item.getAttr("route");
-                if (header.isDefined()) {
-                    final Value route = Record.of()
-                            .slot("tag", header.get("tag").stringValue())
-                            .slot("title", header.get("title").stringValue());
-                    routes.item(route);
-                }
-            }
-            return routes;
-        } catch (Exception e) {
-            log.severe(() -> String.format("Exception thrown:\n%s", e));
-        }
-        return null;
-    }
-
-        public static Value getVehicleLocations(String pollUrl, Value ag) {
+    public static Value getVehicleLocations(String pollUrl, Value ag) {
         try {
             final URL url = new URL(pollUrl);
             final Value vehicleLocs = parse(url);
