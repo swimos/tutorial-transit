@@ -15,7 +15,6 @@ import swim.server.ServerLoader;
 import swim.structure.Item;
 import swim.structure.Record;
 import swim.transit.agent.AgencyAgent;
-import swim.transit.agent.StateAgent;
 import swim.transit.agent.VehicleAgent;
 import swim.structure.Value;
 
@@ -24,37 +23,15 @@ public class TransitPlane extends AbstractPlane {
 
   public TransitPlane() {}
 
-   AgentRoute<StateAgent> stateAgent;
-
   AgentRoute<AgencyAgent> agencyAgent;
-
   AgentRoute<VehicleAgent> vehicleAgent;
 
   public static void main(String[] args) {
     final Kernel kernel = ServerLoader.loadServer();
     final Space space = kernel.getSpace("transit");
-
     kernel.start();
     log.info("Running TransitPlane...");
-
-    // space.command("/vehicle/US/CA/poseurs/dummy", "fake", Value.empty());
-
-    Record dummyVehicleInfo = Record.of()
-            .slot("id", "8888")
-            .slot("uri", "/vehicle/US/CA/poseurs/dummy/8888")
-            .slot("dirId", "outbound")
-            .slot("index", 26)
-            .slot("latitude", 34.07749)
-            .slot("longitude", -117.44896)
-            .slot("routeTag", "61")
-            .slot("secsSinceReport", 9)
-            .slot("speed", 0)
-            .slot("heading", "N");
-
-    space.command("/vehicle/US/CA/poseurs/dummy", "updateVehicle", dummyVehicleInfo);
-
     startAgencies(space);
-
     kernel.run(); // blocks until termination
   }
 
@@ -63,8 +40,6 @@ public class TransitPlane extends AbstractPlane {
     for (Item agency : agencies) {
       log.info(Recon.toString(agency));
       String agencyUri = "/agency/" +
-              agency.get("country").stringValue() +
-              "/" + agency.get("state").stringValue() +
               "/" + agency.get("id").stringValue();
       warp.command(agencyUri, "addInfo", agency.toValue());
     }

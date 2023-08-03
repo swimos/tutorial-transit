@@ -9,7 +9,6 @@ import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 import swim.api.ref.WarpRef;
 import swim.codec.Utf8;
-import swim.recon.Recon;
 import swim.structure.Item;
 import swim.structure.Record;
 import swim.structure.Value;
@@ -28,9 +27,7 @@ public class NextBusHttpAPI {
     public static void sendVehicleInfo(String pollUrl, Value agency, WarpRef warp) {
         final Value vehicles = getVehicleLocations(pollUrl, agency);
         final String agencyUri = "/agency/" +
-                agency.get("country").stringValue() +
-                "/" + agency.get("state").stringValue() +
-                "/" + agency.get("id").stringValue();
+               agency.get("id").stringValue();
         if (vehicles != null && vehicles.length() > 0) {
             warp.command(agencyUri, "addVehicles", vehicles);
         }
@@ -40,9 +37,7 @@ public class NextBusHttpAPI {
         final Value routes = getRoutes(agency);
         if (routes != null && routes.length() > 0) {
             final String agencyUri = "/agency/" +
-                    agency.get("country").stringValue() +
-                    "/" + agency.get("state").stringValue() +
-                    "/" + agency.get("id").stringValue();
+                    agency.get("id").stringValue();
             warp.command(agencyUri, "addRoutes", routes);
         }
     }
@@ -122,9 +117,7 @@ public class NextBusHttpAPI {
                         heading = "SE";
                     }
                     final String uri = "/vehicle/" +
-                            ag.get("country").stringValue() +
-                            "/" + ag.get("state").stringValue() +
-                            "/" + ag.get("id").stringValue() +
+                            ag.get("id").stringValue() +
                             "/" + parseUri(id);
                     final Record vehicle = Record.of()
                             .slot("id", id)
