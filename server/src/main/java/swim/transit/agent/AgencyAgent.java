@@ -4,7 +4,6 @@ import java.util.*;
 import java.util.logging.Logger;
 
 import swim.api.SwimLane;
-import swim.api.SwimTransient;
 import swim.api.agent.AbstractAgent;
 import swim.api.lane.CommandLane;
 import swim.api.lane.MapLane;
@@ -19,7 +18,6 @@ import swim.transit.NextBusHttpAPI;
 
 public class AgencyAgent extends AbstractAgent {
     private static final Logger log = Logger.getLogger(AgencyAgent.class.getName());
-    @SwimTransient
     @SwimLane("vehicles")
     public MapLane<String, Value> vehicles;
 
