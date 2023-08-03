@@ -1,7 +1,6 @@
 package swim.transit.agent;
 
 import swim.api.SwimLane;
-import swim.api.SwimTransient;
 import swim.api.agent.AbstractAgent;
 import swim.api.lane.CommandLane;
 import swim.api.lane.MapLane;
@@ -21,11 +20,9 @@ public class VehicleAgent extends AbstractAgent {
             log.info("vehicle changed from " + Recon.toString(nv) + " from " + Recon.toString(ov));
           });
 
-  @SwimTransient
   @SwimLane("speeds")
   public MapLane<Long, Integer> speeds;
 
-  @SwimTransient
   @SwimLane("accelerations")
   public MapLane<Long, Integer> accelerations;
 
