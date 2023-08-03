@@ -12,7 +12,6 @@ import swim.api.lane.ValueLane;
 import swim.concurrent.AbstractTask;
 import swim.concurrent.TaskRef;
 import swim.concurrent.TimerRef;
-import swim.recon.Recon;
 import swim.structure.Item;
 import swim.structure.Record;
 import swim.structure.Value;
@@ -125,14 +124,6 @@ public class AgencyAgent extends AbstractAgent {
             });
 
     private void onInfo(Value agency) {
-        Record agencyValue = Record.of()
-                .slot("id", agency.get("id").stringValue())
-                .slot("state", agency.get("state").stringValue())
-                .slot("country", agency.get("country").stringValue())
-                .slot("index", agency.get("index").intValue())
-                .slot("uri", this.nodeUri().toString());
-        //final Value agencyValue = agency.unflattened().slot("agencyUri", this.nodeUri().toString());
-        context.command("/state/" + agency.get("country").stringValue() + "/" + agency.get("state").stringValue(), "addAgency", agencyValue);
         info.set(agency);
     }
 
