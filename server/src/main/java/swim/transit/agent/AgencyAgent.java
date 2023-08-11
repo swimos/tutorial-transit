@@ -11,6 +11,7 @@ import swim.api.lane.ValueLane;
 import swim.concurrent.AbstractTask;
 import swim.concurrent.TaskRef;
 import swim.concurrent.TimerRef;
+import swim.recon.Recon;
 import swim.structure.Item;
 import swim.structure.Record;
 import swim.structure.Value;
@@ -19,7 +20,10 @@ import swim.transit.NextBusHttpAPI;
 public class AgencyAgent extends AbstractAgent {
     private static final Logger log = Logger.getLogger(AgencyAgent.class.getName());
     @SwimLane("vehicles")
-    public MapLane<String, Value> vehicles;
+    public MapLane<String, Value> vehicles = this.<String, Value>mapLane()
+    .didUpdate((k, nv, ov) -> {
+        log.info("vehicles -- key: " + k + "; nv: " + Recon.toString(nv));
+    });
 
     @SwimLane("count")
     public ValueLane<Integer> vehicleCount;

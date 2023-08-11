@@ -34,7 +34,7 @@ public class TransitPlane extends AbstractPlane {
     for (Item agency : agencies) {
       log.info(Recon.toString(agency));
       String agencyUri = "/agency/" +
-              "/" + agency.get("id").stringValue();
+              agency.get("id").stringValue();
       warp.command(agencyUri, "addInfo", agency.toValue());
     }
     try {
