@@ -2,14 +2,10 @@ buildscript {
   repositories {
     maven { url 'https://plugins.gradle.org/m2/' }
   }
-  dependencies {
-    classpath 'com.netflix.nebula:gradle-ospackage-plugin:8.3.0'
-  }
 }
 
 apply plugin: 'java-library'
 apply plugin: 'application'
-apply plugin: 'nebula.ospackage-application'
 
 group = 'org.swimos'
 description = 'Real-time Transit App'
