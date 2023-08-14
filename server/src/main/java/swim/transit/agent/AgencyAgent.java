@@ -31,9 +31,6 @@ public class AgencyAgent extends AbstractAgent {
     @SwimLane("speed")
     public ValueLane<Float> avgVehicleSpeed;
 
-    @SwimLane("boundingBox")
-    public ValueLane<Value> boundingBox;
-
     @SwimLane("addVehicles")
     public CommandLane<Value> addVehicles = this.<Value>commandLane().onCommand(this::onVehicles);
 
@@ -57,28 +54,9 @@ public class AgencyAgent extends AbstractAgent {
                 context.command(vehicleUri, "addVehicle", v.toValue());
                 addVehicle(vehicleUri, v);
                 speedSum += v.get("speed").intValue();
-                if (v.get("latitude").floatValue() < minLat) {
-                    minLat = v.get("latitude").floatValue();
-                }
-                if (v.get("latitude").floatValue() > maxLat) {
-                    maxLat = v.get("latitude").floatValue();
-                }
-                if (v.get("longitude").floatValue() < minLng) {
-                    minLng = v.get("longitude").floatValue() ;
-                }
-                if (v.get("longitude").floatValue()  > maxLng) {
-                    maxLng = v.get("longitude").floatValue() ;
-                }
             }
         }
 
-        Value bb = Record.of()
-                .slot("minLat", minLat)
-                .slot("maxLat", maxLat)
-                .slot("minLng", minLng)
-                .slot("maxLng", maxLng);
-
-        boundingBox.set(bb);
         vehicleCount.set(this.vehicles.size());
         if (vehicleCount.get() > 0) {
             avgVehicleSpeed.set(((float) speedSum) / vehicleCount.get());
