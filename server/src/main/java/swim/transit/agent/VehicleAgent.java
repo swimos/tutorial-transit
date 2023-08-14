@@ -14,6 +14,18 @@ public class VehicleAgent extends AbstractAgent {
   private static final Logger log = Logger.getLogger(VehicleAgent.class.getName());
   private long lastReportedTime = 0L;
 
+  @SwimLane("addMessage")
+  CommandLane<Value> addMessage = this.<Value>commandLane()
+      .onCommand(v -> {
+        this.history.put(v.get("timestamp").longValue(), v);
+      });
+
+  @SwimLane("history")
+  MapLane<Long, Value> history = this.<Long, Value>mapLane()
+      .didUpdate((k, n, o) -> {
+        System.out.println(nodeUri() + ": received " + n);
+      });
+
   @SwimLane("vehicle")
   public ValueLane<Value> vehicle = this.<Value>valueLane()
           .didSet((nv, ov) -> {

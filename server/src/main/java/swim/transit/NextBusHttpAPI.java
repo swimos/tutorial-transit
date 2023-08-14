@@ -3,7 +3,11 @@ package swim.transit;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Iterator;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
@@ -16,110 +20,35 @@ import swim.xml.Xml;
 
 public class NextBusHttpAPI {
     private static final Logger log = Logger.getLogger(NextBusHttpAPI.class.getName());
-
+    
     private NextBusHttpAPI() {
     }
 
-    public static void sendVehicleInfo(String pollUrl, Value agency, WarpRef warp) {
-        final Value vehicles = getVehicleLocations(pollUrl, agency);
-        final String agencyUri = "/agency/" +
-                agency.get("id").stringValue();
-        if (vehicles != null && vehicles.length() > 0) {
-            warp.command(agencyUri, "addVehicles", vehicles);
-        }
+    private static final String ENDPOINT_FMT = "https://retro.umoiq.com/service/publicXMLFeed?command=vehicleLocations&a=%s&t=%d";
+
+    private static String endpointForAgency(String agency, long since) {
+        return String.format(ENDPOINT_FMT, agency, since);
     }
 
-    public static Value getVehicleLocations(String pollUrl, Value ag) {
+    private static HttpRequest requestForEndpoint(String endpoint) {
+        return HttpRequest.newBuilder(URI.create(endpoint))
+                .GET()
+                .headers("Accept-Encoding", "gzip")
+                .build();
+    }
+
+    public static Value getVehiclesForAgency(HttpClient executor, String agency, long since) {
+        final HttpRequest request = requestForEndpoint(endpointForAgency(agency, since));
         try {
-            final URL url = new URL(pollUrl);
-            final Value vehicleLocs = parse(url);
-            if (!vehicleLocs.isDefined()) {
-                return null;
-            }
-
-            final Iterator<Item> it = vehicleLocs.iterator();
-            final Record vehicles = Record.of();
-            while (it.hasNext()) {
-                final Item item = it.next();
-                final Value header = item.getAttr("vehicle");
-                if (header.isDefined()) {
-                    final String id = header.get("id").stringValue().trim();
-                    final String routeTag = header.get("routeTag").stringValue();
-                    final float latitude = header.get("lat").floatValue(0.0f);
-                    final float longitude = header.get("lon").floatValue(0.0f);
-                    final int speed = header.get("speedKmHr").intValue(0);
-                    final int secsSinceReport = header.get("secsSinceReport").intValue(0);
-                    final String dir = header.get("dirTag").stringValue("");
-                    final String dirId;
-                    if (!dir.equals("")) {
-                        dirId = dir.contains("_0") ? "outbound" : "inbound";
-                    } else {
-                        dirId = "outbound";
-                    }
-
-                    final int headingInt = header.get("heading").intValue(0);
-                    String heading = "";
-                    if (headingInt < 23 || headingInt >= 338) {
-                        heading = "E";
-                    } else if (23 <= headingInt && headingInt < 68) {
-                        heading = "NE";
-                    } else if (68 <= headingInt && headingInt < 113) {
-                        heading = "N";
-                    } else if (113 <= headingInt && headingInt < 158) {
-                        heading = "NW";
-                    } else if (158 <= headingInt && headingInt < 203) {
-                        heading = "W";
-                    } else if (203 <= headingInt && headingInt < 248) {
-                        heading = "SW";
-                    } else if (248 <= headingInt && headingInt < 293) {
-                        heading = "S";
-                    } else if (293 <= headingInt && headingInt < 338) {
-                        heading = "SE";
-                    }
-                    final String uri = "/vehicle/" +
-                            ag.get("id").stringValue() +
-                            "/" + parseUri(id);
-                    final Record vehicle = Record.of()
-                            .slot("id", id)
-                            .slot("uri", uri)
-                            .slot("dirId", dirId)
-                            .slot("index", ag.get("index").intValue())
-                            .slot("latitude", latitude)
-                            .slot("longitude", longitude)
-                            .slot("routeTag", routeTag)
-                            .slot("secsSinceReport", secsSinceReport)
-                            .slot("speed", speed)
-                            .slot("heading", heading);
-                    vehicles.add(vehicle);
-                }
-            }
-            return vehicles;
+            final HttpResponse<InputStream> response = executor.send(request,
+                    HttpResponse.BodyHandlers.ofInputStream());
+            return Utf8.read(new GZIPInputStream(response.body()), Xml.structureParser().documentParser());
+            // Alternatively: convert GZIPInputStream to String, then invoke the more
+            // familiar Xml.parse()
         } catch (Exception e) {
-            log.severe(() -> String.format("Exception thrown:\n%s", e));
+            e.printStackTrace();
+            return Value.absent();
         }
-        return null;
-    }
-
-    private static String parseUri(String uri) {
-        try {
-            return java.net.URLEncoder.encode(uri, "UTF-8").toString();
-        } catch (UnsupportedEncodingException e) {
-            return null;
-        }
-    }
-
-    private static Value parse(URL url) {
-        final HttpURLConnection urlConnection;
-        try {
-            urlConnection = (HttpURLConnection) url.openConnection();
-            urlConnection.setRequestProperty("Accept-Encoding", "gzip, deflate");
-            final InputStream stream = new GZIPInputStream(urlConnection.getInputStream());
-            final Value configValue = Utf8.read(stream, Xml.structureParser().documentParser());
-            return configValue;
-        } catch (Throwable e) {
-            log.severe(() -> String.format("Exception thrown:\n%s", e));
-        }
-        return Value.absent();
     }
 
 }
