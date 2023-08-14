@@ -1,26 +1,16 @@
 package swim.transit;
 
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.Iterator;
-import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
-import swim.api.ref.WarpRef;
 import swim.codec.Utf8;
-import swim.structure.Item;
-import swim.structure.Record;
 import swim.structure.Value;
 import swim.xml.Xml;
 
 public class NextBusHttpAPI {
-    private static final Logger log = Logger.getLogger(NextBusHttpAPI.class.getName());
-    
     private NextBusHttpAPI() {
     }
 
