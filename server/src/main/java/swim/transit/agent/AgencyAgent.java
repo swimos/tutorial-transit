@@ -32,10 +32,7 @@ public class AgencyAgent extends AbstractAgent {
     @SwimLane("speed")
     public ValueLane<Float> avgVehicleSpeed;
 
-    @SwimLane("addVehicles")
-    public CommandLane<Value> addVehicles = this.<Value>commandLane().onCommand(this::onVehicles);
-
-    private void onVehicles(Value newVehicles) {
+    public void onVehicles(Value newVehicles) {
         if (newVehicles == null || newVehicles.length() == 0) {
             return;
         }
@@ -129,8 +126,7 @@ public class AgencyAgent extends AbstractAgent {
             }
           }
         }
-        // Relay each vehicleInfo to the appropriate VehicleAgent
-        command("/agency/" + aid, "addVehicles", vehicleInfos);
+        onVehicles(vehicleInfos);
       }
   
       @Override
