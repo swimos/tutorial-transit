@@ -48,7 +48,7 @@ public class AgencyAgent extends AbstractAgent {
         for (Value v : vehicleUpdates.values()) {
             final String vehicleUri = v.get("uri").stringValue();
             if (vehicleUri != null && !vehicleUri.equals("")) {
-                context.command(vehicleUri, "addVehicle", v.toValue());
+                context.command(vehicleUri, "updateVehicle", v.toValue());
                 addVehicle(vehicleUri, v);
                 speedSum += v.get("speed").intValue(0);
             }
