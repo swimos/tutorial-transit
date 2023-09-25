@@ -4,7 +4,6 @@ import java.util.*;
 import java.util.logging.Logger;
 
 import swim.api.SwimLane;
-import swim.api.SwimTransient;
 import swim.api.agent.AbstractAgent;
 import swim.api.lane.CommandLane;
 import swim.api.lane.MapLane;
@@ -12,30 +11,28 @@ import swim.api.lane.ValueLane;
 import swim.concurrent.AbstractTask;
 import swim.concurrent.TaskRef;
 import swim.concurrent.TimerRef;
+import swim.recon.Recon;
+import swim.structure.Attr;
 import swim.structure.Item;
 import swim.structure.Record;
 import swim.structure.Value;
 import swim.transit.NextBusHttpAPI;
+import swim.transit.Assets;
 
 public class AgencyAgent extends AbstractAgent {
     private static final Logger log = Logger.getLogger(AgencyAgent.class.getName());
-    @SwimTransient
+    private long lastTime = 0L; // This will update via API responses
+
     @SwimLane("vehicles")
-    public MapLane<String, Value> vehicles;
+    public MapLane<String, Value> vehicles = this.<String, Value>mapLane();
 
     @SwimLane("count")
-    public ValueLane<Integer> vehiclesCount;
+    public ValueLane<Integer> vehicleCount;
 
     @SwimLane("speed")
-    public ValueLane<Float> vehiclesSpeed;
+    public ValueLane<Float> avgVehicleSpeed;
 
-    @SwimLane("addVehicles")
-    public CommandLane<Value> addVehicles = this.<Value>commandLane().onCommand(this::onVehicles);
-
-    @SwimLane("boundingBox")
-    public ValueLane<Value> boundingBox;
-
-    private void onVehicles(Value newVehicles) {
+    public void onVehicles(Value newVehicles) {
         if (newVehicles == null || newVehicles.length() == 0) {
             return;
         }
@@ -47,39 +44,19 @@ public class AgencyAgent extends AbstractAgent {
 
         updateVehicles(vehicleUpdates);
         int speedSum = 0;
-        float minLat = Integer.MAX_VALUE, minLng = Integer.MAX_VALUE, maxLat = Integer.MIN_VALUE, maxLng = Integer.MIN_VALUE;
 
         for (Value v : vehicleUpdates.values()) {
             final String vehicleUri = v.get("uri").stringValue();
             if (vehicleUri != null && !vehicleUri.equals("")) {
-                context.command(vehicleUri, "addVehicle", v.toValue());
+                context.command(vehicleUri, "updateVehicle", v.toValue());
                 addVehicle(vehicleUri, v);
-                speedSum += v.get("speed").intValue();
-                if (v.get("latitude").floatValue() < minLat) {
-                    minLat = v.get("latitude").floatValue();
-                }
-                if (v.get("latitude").floatValue() > maxLat) {
-                    maxLat = v.get("latitude").floatValue();
-                }
-                if (v.get("longitude").floatValue() < minLng) {
-                    minLng = v.get("longitude").floatValue() ;
-                }
-                if (v.get("longitude").floatValue()  > maxLng) {
-                    maxLng = v.get("longitude").floatValue() ;
-                }
+                speedSum += v.get("speed").intValue(0);
             }
         }
 
-        Value bb = Record.of()
-                .slot("minLat", minLat)
-                .slot("maxLat", maxLat)
-                .slot("minLng", minLng)
-                .slot("maxLng", maxLng);
-
-        boundingBox.set(bb);
-        vehiclesCount.set(this.vehicles.size());
-        if (vehiclesCount.get() > 0) {
-            vehiclesSpeed.set(((float) speedSum) / vehiclesCount.get());
+        vehicleCount.set(this.vehicles.size());
+        if (vehicleCount.get() > 0) {
+            avgVehicleSpeed.set(((float) speedSum) / vehicleCount.get());
         }
     }
 
@@ -93,110 +70,87 @@ public class AgencyAgent extends AbstractAgent {
     }
 
     private void addVehicle(String vehicleUri, Value v) {
-        // log.info("addVehicle vehicleUri: " + vehicleUri + "; v: " + Recon.toString(v));
-        final Value r = routes.get(v.get("routeTag").stringValue());
+        log.info("addVehicle vehicleUri: " + vehicleUri + "; v: " + Recon.toString(v));
+        Value newVehicle = Record.of()
+            .slot("id", getProp("id").stringValue(""))
+            .slot("uri", v.get("uri").stringValue())
+            .slot("agency", info.get().get("id").stringValue())
+            .slot("dirId", v.get("dirTag").stringValue())
+            .slot("latitude", v.get("lat").floatValue())
+            .slot("longitude", v.get("lon").floatValue())
+            .slot("speed", v.get("speedKmHr").intValue(0))
+            .slot("secsSinceReport", v.get("secsSinceReport").intValue())
+            .slot("heading", v.get("heading").stringValue());
 
-        if (r != null) {
-             Value newVehicle = Record.of()
-                     .slot("id", getProp("id").stringValue(""))
-                     .slot("uri", v.get("uri").stringValue())
-                     .slot("agency", info.get().get("id").stringValue())
-                     .slot("routeTag", r.get("title").stringValue())
-                     .slot("dirId", v.get("dirId").stringValue())
-                     .slot("latitude", v.get("latitude").floatValue())
-                     .slot("longitude", v.get("longitude").floatValue())
-                     .slot("speed", v.get("speed").intValue())
-                     .slot("secsSinceReport", v.get("secsSinceReport").intValue())
-                     .slot("heading", v.get("heading").stringValue())
-                     .slot("routeTitle", r.get("title"));
-            this.vehicles.put(vehicleUri, newVehicle);
-        }
+        this.vehicles.put(vehicleUri, newVehicle);
     }
 
     @SwimLane("addInfo")
     public CommandLane<Value> addInfo = this.<Value>commandLane().onCommand(this::onInfo);
 
     @SwimLane("info")
-    public ValueLane<Value> info = this.<Value>valueLane()
-            .didSet((n, o) -> {
-                abortPoll();
-                startPoll(n);
-            });
+    public ValueLane<Value> info = this.<Value>valueLane();;
 
     private void onInfo(Value agency) {
         info.set(agency);
     }
 
-    @SwimLane("addRoutes")
-    public CommandLane<Value> addRoutes = this.<Value>commandLane().onCommand(this::onRoutes);
-
-    @SwimLane("routes")
-    public MapLane<String, Value> routes;
-
-    private void onRoutes(Value r) {
-        for (Item route : r) {
-            routes.put(route.get("tag").stringValue(), route.toValue());
-        }
-    }
-
-    private TaskRef pollVehicleInfo;
-
+    private String agencyId() {
+        final String nodeUri = nodeUri().toString();
+        return nodeUri.substring(nodeUri.lastIndexOf("/") + 1);
+      }
+    
     private TimerRef timer;
-
-    private void startPoll(final Value ag) {
-        abortPoll();
-
-        // Define task
-        this.pollVehicleInfo = asyncStage().task(new AbstractTask() {
-
-            final Value agency = ag;
-            final String url = String.format("https://retro.umoiq.com/service/publicXMLFeed?command=vehicleLocations&a=%s&t=0",
-                    ag.get("id").stringValue());
-
-            @Override
-            public void runTask() {
-                NextBusHttpAPI.sendVehicleInfo(this.url, this.agency, AgencyAgent.this.context);
+    private final TaskRef agencyPollTask = asyncStage().task(new AbstractTask() {
+  
+      private long lastTime = 0L; // This will update via API responses
+  
+      @Override
+      public void runTask() {
+        final String aid = agencyId();
+        // Make API call
+        final Value payload = NextBusHttpAPI.getVehiclesForAgency(Assets.httpClient(), aid, this.lastTime);
+        // Extract information for all vehicles and the payload's timestamp
+        //final List<Value> vehicleInfos = new ArrayList<>(payload.length());
+        final Record vehicleInfos = Record.of();
+        for (Item i : payload) {
+          if (i.head() instanceof Attr) {
+            final String label = i.head().key().stringValue(null);
+            if ("vehicle".equals(label)) {
+                final Value vehicle = i.head().toValue();
+                final String vehicleUri = "/vehicle/" + aid + "/" + vehicle.get("id").stringValue();
+                final Value vehicleInfo = vehicle.updatedSlot("uri", vehicleUri);
+                vehicleInfos.add(vehicleInfo);
+            } else if ("lastTime".equals(label)) {
+              this.lastTime = i.head().toValue().get("time").longValue();
             }
-
-            @Override
-            public boolean taskWillBlock() {
-                return true;
-            }
-        });
-
-        // Define timer to periodically reschedule task
-        if (this.pollVehicleInfo != null) {
-            this.timer = setTimer(1000, () -> {
-                this.pollVehicleInfo.cue();
-                this.timer.reschedule(POLL_INTERVAL);
-            });
+          }
         }
-    }
-
-    private void abortPoll() {
-        if (this.pollVehicleInfo != null) {
-            this.pollVehicleInfo.cancel();
-            this.pollVehicleInfo = null;
-        }
-        if (this.timer != null) {
-            this.timer.cancel();
-            this.timer = null;
-        }
-    }
-
+        onVehicles(vehicleInfos);
+      }
+  
+      @Override
+      public boolean taskWillBlock() {
+        return true;
+      }
+  
+    });
+  
     @Override
     public void didStart() {
         vehicles.clear();
-        vehiclesSpeed.set((float) 0);
-        vehiclesCount.set(0);
+        avgVehicleSpeed.set((float) 0);
+        vehicleCount.set(0);
+        initPoll();
         log.info(() -> String.format("Starting Agent:%s", nodeUri()));
     }
 
-    @Override
-    public void willStop() {
-        abortPoll();
-        super.willStop();
-    }
-
-    private static final long POLL_INTERVAL = 10000L;
+    private void initPoll() {
+        this.timer = setTimer((long) (Math.random() * 1000), () -> {
+          this.agencyPollTask.cue();
+          // Placing reschedule() here is like ScheduledExecutorService#scheduleAtFixedRate.
+          // Moving it to the end of agencyPollTask#runTask is like #scheduleWithFixedDelay.
+          this.timer.reschedule(15000L);
+        });
+      }
 }

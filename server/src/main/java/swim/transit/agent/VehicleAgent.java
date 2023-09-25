@@ -1,7 +1,6 @@
 package swim.transit.agent;
 
 import swim.api.SwimLane;
-import swim.api.SwimTransient;
 import swim.api.agent.AbstractAgent;
 import swim.api.lane.CommandLane;
 import swim.api.lane.MapLane;
@@ -21,11 +20,9 @@ public class VehicleAgent extends AbstractAgent {
             log.info("vehicle changed from " + Recon.toString(nv) + " from " + Recon.toString(ov));
           });
 
-  @SwimTransient
   @SwimLane("speeds")
   public MapLane<Long, Integer> speeds;
 
-  @SwimTransient
   @SwimLane("accelerations")
   public MapLane<Long, Integer> accelerations;
 
@@ -39,18 +36,18 @@ public class VehicleAgent extends AbstractAgent {
     final int newSpeed = v.get("speed").intValue(0);
 
     this.vehicle.set(v);
-    speeds.put(time, newSpeed);
-    if (speeds.size() > 10) {
-      speeds.drop(speeds.size() - 10);
+    this.speeds.put(time, newSpeed);
+    if (this.speeds.size() > 10) {
+      this.speeds.drop(speeds.size() - 10);
     }
     if (lastReportedTime > 0) {
-      final float acceleration = (float) ((newSpeed - oldSpeed)) / (time - lastReportedTime) * 3600;
-      accelerations.put(time, Math.round(acceleration));
-      if (accelerations.size() > 10) {
-        accelerations.drop(accelerations.size() - 10);
+      final float acceleration = (float) ((newSpeed - oldSpeed)) / (time - this.lastReportedTime) * 3600;
+      this.accelerations.put(time, Math.round(acceleration));
+      if (this.accelerations.size() > 10) {
+        this.accelerations.drop(accelerations.size() - 10);
       }
     }
-    lastReportedTime = time;
+    this.lastReportedTime = time;
   }
 
   @Override

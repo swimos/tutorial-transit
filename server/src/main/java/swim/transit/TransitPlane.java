@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.util.Scanner;
 import java.util.logging.Logger;
 
-import swim.api.agent.AgentRoute;
 import swim.api.plane.AbstractPlane;
 import swim.api.ref.WarpRef;
 import swim.api.space.Space;
@@ -14,17 +13,12 @@ import swim.recon.Recon;
 import swim.server.ServerLoader;
 import swim.structure.Item;
 import swim.structure.Record;
-import swim.transit.agent.AgencyAgent;
-import swim.transit.agent.VehicleAgent;
 import swim.structure.Value;
 
 public class TransitPlane extends AbstractPlane {
   private static final Logger log = Logger.getLogger(TransitPlane.class.getName());
 
   public TransitPlane() {}
-
-  AgentRoute<AgencyAgent> agencyAgent;
-  AgentRoute<VehicleAgent> vehicleAgent;
 
   public static void main(String[] args) {
     final Kernel kernel = ServerLoader.loadServer();
@@ -40,7 +34,7 @@ public class TransitPlane extends AbstractPlane {
     for (Item agency : agencies) {
       log.info(Recon.toString(agency));
       String agencyUri = "/agency/" +
-              "/" + agency.get("id").stringValue();
+              agency.get("id").stringValue();
       warp.command(agencyUri, "addInfo", agency.toValue());
     }
     try {
@@ -48,7 +42,6 @@ public class TransitPlane extends AbstractPlane {
     } catch (InterruptedException e) {
 
     }
-    NextBusHttpAPI.sendRoutes(agencies, warp);
   }
 
   private static Value loadAgencies() {

@@ -9,9 +9,6 @@ transit: @fabric {
         pattern: "/vehicle/:agency/:id"
         @agent(class: "swim.transit.agent.VehicleAgent")
     }
-    @store {
-        path: "/tmp/swim-transit/"
-    }
 }
 
 @web(port: 9001) {
